@@ -33,7 +33,7 @@ def start_payment(request: PayRideRequest, svc: PaymentService = Depends()):
 
 
 @app.post(Routes.PAYMENT)
-def start_payment(payment: int, svc: PaymentService = Depends()):
+def complete_payment(payment: int, svc: PaymentService = Depends()):
     return svc.payment_complete(payment_id=payment)
 
 
