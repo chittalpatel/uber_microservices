@@ -7,7 +7,7 @@ from database import Base
 
 
 class Payment(Base):
-    __tablename__ = "rides"
+    __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow())

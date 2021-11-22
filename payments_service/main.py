@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from service import PaymentService
 import models
-from schemas import PayRideRequest
+from schemas import PayRideRequest, Payment
 from database import engine
 from constants import Routes
 from kafka_producer import Producer
@@ -19,7 +19,7 @@ producer = Producer()
 app = FastAPI()
 
 
-@app.post(Routes.PAY)
+@app.post(Routes.PAY, response_model=List[Payment])
 def start_payment(request: PayRideRequest, svc: PaymentService = Depends()):
     payments = svc.pay_ride(request=request)
     for payment in payments:
@@ -27,12 +27,12 @@ def start_payment(request: PayRideRequest, svc: PaymentService = Depends()):
             "user_id": payment.user_id,
             "amount": payment.amount,
         }
-        producer.produce(key=payment.id, value=json.dumps(payload))
+        #producer.produce(key=payment.id, value=json.dumps(payload))
 
-    return {"message": "Payments processing started"}
+    return payments
 
 
-@app.post(Routes.PAYMENT)
+@app.post(Routes.PAYMENT, response_model=Payment)
 def complete_payment(payment: int, svc: PaymentService = Depends()):
     return svc.payment_complete(payment_id=payment)
 

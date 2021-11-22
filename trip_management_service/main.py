@@ -26,7 +26,8 @@ def accept_booking(
 
 @app.get(Routes.RIDE_OTP, response_model=GetOtpResponse)
 def get_otp(ride: int, svc: TripManagementService = Depends()):
-    return svc.get_ride_by_id(ride_id=ride)
+    ride = svc.get_ride_by_id(ride_id=ride)
+    return {"otp": ride.otp}
 
 
 @app.post(Routes.RIDE_START, response_model=Ride)

@@ -67,6 +67,7 @@ class TripManagementService:
         )
 
         ride.state = RideStates.COMPLETED
+        ride.completed_at = datetime.datetime.utcnow()
         self.db.add(ride)
         self.db.commit()
         self.db.refresh(ride)

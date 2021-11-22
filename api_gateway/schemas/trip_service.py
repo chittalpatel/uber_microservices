@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 class AcceptBookingRequest(BaseModel):
     booking_id: int
-    driver_id: int
 
 
 class GetOtpResponse(BaseModel):
