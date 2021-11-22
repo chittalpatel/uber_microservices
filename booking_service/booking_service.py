@@ -2,6 +2,8 @@ from flask import Flask
 from flask_restful import Api,Resource,reqparse,abort,fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import requests
+from haversine import Unit,haversine
 
 app = Flask(__name__)
 api=Api(app)
@@ -70,10 +72,16 @@ class BookingApi(Resource):
 
     def post(self):
         args = booking_api_post_args.parse_args()
-        #------------------- Calculate distance through Google Map api--------------------
-        # also calculate Estimatate time
-        dist=12
-        est=30
+        url = 'https://nominatim.openstreetmap.org/search?q={}&format=json&limit=1'.format(args['pickup_location'])
+        r = requests.get(url).json()
+        p_lat = float(r[0]['lat'])
+        p_lon = float(r[0]['lon'])
+        url = 'https://nominatim.openstreetmap.org/search?q={}&format=json&limit=1'.format(args['drop_location'])
+        r = requests.get(url).json()
+        d_lat = float(r[0]['lat'])
+        d_lon = float(r[0]['lon'])
+        dist=int(haversine((p_lat,p_lon),(d_lat,d_lon),unit=Unit.KILOMETERS))
+        est=int(dist*0.8)
         #--------------------------------------------------------------------------------
 
         #--------------check vehichle type name is correct
@@ -89,7 +97,6 @@ class BookingApi(Resource):
             cost = dist * 15;
         else:
             abort(404, message="Type of vehicle does not match!")
-
         created_at=datetime.now()
         booking = Booking(passenger_id=args['passenger_id'],pickup_location=args['pickup_location'],est=est,
                             drop_location=args['drop_location'],cost=cost,created_at=created_at,state="pending")
@@ -97,24 +104,23 @@ class BookingApi(Resource):
         db.session.commit()
         booking_id = Booking.query.filter_by(passenger_id=args['passenger_id'], created_at=created_at).first()
 
-        driver_list=[1,2,3,4,5]
-        driver_id=driver_list[0]
-        '''
-        if driver_list api:
-            if post request to ride:
-                booking.state = 'accepted'
-                db.session.commit()
-            else:
-                booking.state = 'cancelled'
-                db.session.commit()
-                abort(404, message="Internal Server Error")
-        else:
+        params={'latitude':p_lat,'longitude':p_lon}
+        url = '{}/getdriverlist'.format("devam's domain name")
+        r = requests.get(url,params=params).json()
+        r=dict(r)
+
+        if len(list(r.keys()))==0:
             booking.state = 'cancelled'
             db.session.commit()
             abort(404, message="Internal Server Error")
-        '''
-        booking.state = 'accepted'
-        db.session.commit()
+        else:
+            driver_id = int(list(r.keys())[0])
+            booking.state = 'accepted'
+            db.session.commit()
+
+        # driver_id=1
+        # booking.state = 'accepted'
+        # db.session.commit()
         return {'booking_id':booking_id.id,'driver_id':driver_id,'cost':cost,'est':est}, 200
 
     @marshal_with(resource_fields)
