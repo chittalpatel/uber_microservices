@@ -54,6 +54,15 @@ resource_fields = {
         'created_at':fields.DateTime,
         'state':fields.String
 }
+resource_fields_allbooking= {
+        'id':fields.Integer,
+        'pickup_location':fields.String,
+        'drop_location':fields.String,
+        'cost':fields.Integer,
+        'est':fields.Integer,
+        'created_at':fields.DateTime,
+        'state':fields.String
+}
 
 class BookingApi(Resource):
 
@@ -144,7 +153,7 @@ class BookingApi(Resource):
         return {'messgae': 'Deleted Successfully'}
 
 class AllBookingApi(Resource):
-    @marshal_with(resource_fields)
+    @marshal_with(resource_fields_allbooking)
     def get(self):
         args = all_booking_api_get_args.parse_args()
         booking = Booking.query.filter_by(passenger_id=args['passenger_id']).all()
