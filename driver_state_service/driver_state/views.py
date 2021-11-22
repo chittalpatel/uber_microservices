@@ -10,7 +10,6 @@ from .models import DriverState
 def setState(request):
     if request.method=='POST':
         body_unicode = request.body.decode('utf-8')
-        print(body_unicode)
         body = json.loads(body_unicode)
         driver_object=DriverState(driver_id=body['driver_id'], latitude=body['latitude'], longitude=body['longitude'], state=body['state'])
         if not DriverState.objects.filter(driver_id=body['driver_id']).exists():
@@ -30,14 +29,10 @@ def setState(request):
 @csrf_exempt
 def getDriverList(request):
     if request.method == 'GET':
-        body_unicode = request.body.decode('utf-8')
-        print( 1, body_unicode)
-        body = json.loads(body_unicode)
-        print(2, body)
-        curr_latitude=body['latitude']
-        curr_longitude=body['longitude']
+        curr_latitude = request.GET['latitude']
+        curr_longitude=request.GET['longitude']
         driver_list=dict()
-        loc1 = (curr_latitude, curr_longitude)
+        loc1 = (float(curr_latitude), float(curr_longitude))
         objects=DriverState.objects.all()
         for object in objects:
             if object.state=="idle":
