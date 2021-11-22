@@ -8,7 +8,7 @@ from database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, index=True, unique=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     email = Column(String, unique=True, index=True)
     password = Column(String)
@@ -21,7 +21,7 @@ class User(Base):
 class Driver(Base):
     __tablename__ = "drivers"
 
-    user_id = Column(String, ForeignKey("users.id"),  index=True, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"),  index=True, primary_key=True)
     acc_no = Column(String, unique=True)
     vehicle_number = Column(String, ForeignKey("vehicles.vehicle_number"),  index=True, unique=True)
 

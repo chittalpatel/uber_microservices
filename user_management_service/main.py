@@ -17,20 +17,18 @@ def get_db():
         db.close()
 
 class RegStruct(BaseModel):
-    id: str
     name: str
     email: str
     password: str
     mobile: str
     user_type: str
-    balance: float
 
 class LoginStruct(BaseModel):
-    id: str
+    mobile: str
     password: str
 
 class DriverStruct(BaseModel):
-    user_id: str
+    user_id: int
     acc_no: str
     vehicle_number: str
     vehicle_type: str
