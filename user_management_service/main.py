@@ -1,5 +1,7 @@
 from typing import Optional
 import decimal
+
+import uvicorn as uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm.session import Session
@@ -203,5 +205,9 @@ def delete_driver(user_id: int, db: Session = Depends(get_db)):
 
     else:
          return {"Message": "No driver entry found", "Status": False} 
-    
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+
 

@@ -1,11 +1,11 @@
 from typing import List
 
 import requests
+import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
 
 from client import InternalClient
-from schemas.payment_service import Payment, PayRideRequest
 from schemas.trip_service import AcceptBookingRequest, Ride, GetOtpResponse
 from schemas.user_service import LoginStruct, RegStruct, DriverStruct
 from security import create_access_token, authenticated_user
@@ -81,4 +81,8 @@ def complete_ride(ride: int, user: dict = Depends(authenticated_user)):
 #######################################################################
 # Payment Service is currently for internal use only
 #######################################################################
+
+
+if __name__ == "__main__":
+    uvicorn.run(router, host="0.0.0.0", port=8000, log_level="info")
 

@@ -4,7 +4,7 @@ from kafka import KafkaProducer
 
 
 class Config:
-    PAYMENT_TOPIC = os.getenv("PAYMENT_TOPIC", "paymeny-topic")
+    PAYMENT_TOPIC = os.getenv("PAYMENT_TOPIC", "payment-topic")
     KAFKA_HOST = os.getenv("KAFKA_HOST", "localhost")
 
 
