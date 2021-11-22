@@ -1,7 +1,10 @@
 from typing import Optional
+import decimal
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm.session import Session
+from sqlalchemy.sql.expression import null
+from sqlalchemy.sql.sqltypes import String
 import models
 from database import engine, SessionLocal
 from pydantic import BaseModel
@@ -17,11 +20,12 @@ def get_db():
         db.close()
 
 class RegStruct(BaseModel):
-    name: str
-    email: str
-    password: str
-    mobile: str
-    user_type: str
+    name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    mobile: Optional[str] = None
+    user_type: Optional[str] = None
+    balance: Optional[float] = None
 
 class LoginStruct(BaseModel):
     mobile: str
@@ -45,49 +49,55 @@ def read_root():
 @app.post("/register")
 def create_user(userInfo: RegStruct, db: Session = Depends(get_db)):
     user = User()
-    if db.query(User).filter_by(id=userInfo.id).first() is not None:
-        return {"Error: " : "user id "+userInfo.id+" already in use", "Status": False}
+    if db.query(User).filter_by(mobile=userInfo.mobile).first() is not None:
+        return HTTPException(status_code=403, detail="mobile number already in use")
 
     elif db.query(User).filter_by(email=userInfo.email).first() is not None:
-        return {"Error: " : "email "+ userInfo.email+" already in use", "Status": False}
+        return HTTPException(status_code=403, detail="email already in use")
 
     try:
-        user.id = userInfo.id
         user.name = userInfo.name
         user.email = userInfo.email
         user.password = userInfo.password
         user.user_type = userInfo.user_type
+        user.mobile = userInfo.mobile
         user.balance = userInfo.balance
         
         db.add(user)
         db.commit()
 
     except Exception as e:
-        return {"Exception": e}
+        return HTTPException(status_code=400, detail=str(e))
 
     return {"Message:" : "user "+user.name+" Created", "Status": True}
 
 
 @app.post("/login")
 def login(userInfo: LoginStruct, db: Session = Depends(get_db)):
-    if db.query(User).filter_by(id=userInfo.id).first() is not None and db.query(User).filter_by(id=userInfo.id).first().password == userInfo.password:
-        return {"Status": True}
+    if db.query(User).filter_by(mobile=userInfo.mobile).first() is not None and db.query(User).filter_by(mobile=userInfo.mobile).first().password == userInfo.password:
+        user_id = db.query(User).filter_by(mobile=userInfo.mobile).first().id
+        return {"Status": True, "user_id": user_id, "mobile": userInfo.mobile}
     else:
-        return {"Status": False}
+        return HTTPException(status_code=401, detail="invalid credentials")
 
 
-@app.delete("/delete/{user_id}")
+@app.post("/delete/{user_id}")
 def delete(user_id, db: Session = Depends(get_db)):
     user = db.query(User).get(user_id)
 
     if user:
+        if user.user_type == 'driver':
+            driver = db.query(Driver).get(user_id)
+            vehicle = db.query(Vehicle).get(driver.vehicle_number)
+            db.delete(vehicle)
+            db.delete(driver)
         db.delete(user)
         db.commit()
-        db.close()
+        #db.close()
     else:
-        return {"Message": "user with id "+user_id+" not found", "Status": False}
+        return HTTPException(status_code=404, detail="user not found")
 
-    return {"Message": "user with id "+user_id+" deleted", "Status": True}
+    return {"Message": "user deleted", "Status": True}
 
 
 @app.get("/profile/{user_id}")
@@ -104,35 +114,94 @@ def getProfile(user_id, db: Session = Depends(get_db)):
         user_dict['balance'] = user.balance
         return {"content" : user_dict, "Status": True}
     
-    return {"Message": "user with id "+user_id+" not found", "Status": False}
+    return HTTPException(status_code=404, detail="user not found")
 
 
-@app.post("/add_driver")
-def add_driver(driverInfo: DriverStruct, db: Session = Depends(get_db)):
-    if db.query(User).filter_by(id=driverInfo.user_id).first() is not None:
-        if db.query(Driver).filter_by(user_id=driverInfo.user_id).first() is None:
-            if db.query(User).filter_by(id=driverInfo.user_id).first().user_type == 'driver':
-                if db.query(Vehicle).filter_by(vehicle_number=driverInfo.vehicle_number).first() is None:
-                    driver = Driver()
-                    vehicle = Vehicle()
-                    vehicle.vehicle_number = driverInfo.vehicle_number
-                    vehicle.vehicle_type = driverInfo.vehicle_type
-                    driver.user_id = driverInfo.user_id
-                    driver.acc_no = driverInfo.acc_no
-                    driver.vehicle_number = driverInfo.vehicle_number
-                    db.add(driver)
-                    db.add(vehicle)
-                    db.commit()
-                    db.close()
-                    return {"Message": "Driver added", "Status": True}
-                
+@app.post("/add-driver/{user_id}")
+def add_driver(driverInfo: DriverStruct, user_id: int, db: Session = Depends(get_db)):
+    if db.query(User).filter_by(id=user_id).first() is not None:
+        if db.query(Driver).filter_by(acc_no=driverInfo.acc_no).first() is None:
+            if db.query(Driver).filter_by(user_id=user_id).first() is None:
+                if db.query(User).filter_by(id=user_id).first().user_type == 'driver':
+                    if db.query(Vehicle).filter_by(vehicle_number=driverInfo.vehicle_number).first() is None:
+                        driver = Driver()
+                        vehicle = Vehicle()
+                        vehicle.vehicle_number = driverInfo.vehicle_number
+                        vehicle.vehicle_type = driverInfo.vehicle_type
+                        driver.user_id = driverInfo.user_id
+                        driver.acc_no = driverInfo.acc_no
+                        driver.vehicle_number = driverInfo.vehicle_number
+                        db.add(driver)
+                        db.add(vehicle)
+                        db.commit()
+                        #db.close()
+                        return {"Message": "Driver added", "Status": True}
+                    
+                    else:
+                        return HTTPException(status_code=403, detail="vehicle already exixts")
                 else:
-                    return {"Message": "Vehicle already exists in database", "Status": False}
+                    return HTTPException(status_code=404, detail="user is not a driver")
             else:
-                return {"Message": "The user with id "+driverInfo.user_id+" is not a driver", "Status": False}
+                return HTTPException(status_code=403, detail="driver already exixts")
         else:
-                return {"Message": "The driver with id "+driverInfo.user_id+" already exists", "Status": False}
+            return HTTPException(status_code=403, detail="account no already registered")
     else:
-        return {"Message": "The user with id "+driverInfo.user_id+" does not exist in database", "Status": False}
+        return HTTPException(status_code=404, detail="user does not exist")
+
+
+@app.post("/update-user/{user_id}")
+def update_user(user_id: int, userInfo: RegStruct, db: Session = Depends(get_db)):
+    user_dict = userInfo.dict(exclude_unset=True)
+    user = db.query(User).get(user_id)
+    
+
+    for key in user_dict:
+        if key == "balance":
+            user.balance += decimal.Decimal(user_dict[key])
+
+        elif key == "name":
+            user.name = userInfo.name
+        
+        elif key == "mobile":
+            if db.query(User).filter_by(mobile=user_dict[key]).first() is not None:
+                return HTTPException(status_code=403, detail="mobile number already in use")
+            user.mobile = userInfo.mobile
+
+        elif key == "email":
+            if db.query(User).filter_by(email=user_dict[key]).first() is not None:
+                return HTTPException(status_code=403, detail="email number already in use")
+            user.email = userInfo.email
+
+        elif key == "password":
+            user.password = userInfo.password
+
+        elif key == "user_type":
+            if user.user_type == 'driver' & user_dict[key] == 'passenger':
+                delete_driver(user.id)
+            user.user_type = userInfo.user_type
+
+
+        else:
+            print(user[key])
+            user[key] = user_dict[key]
+
+    db.commit()
+    return {"Message": "User updated", "Status": True}    
+
+
+@app.post("/delete-driver/{user_id}")
+def delete_driver(user_id: int, db: Session = Depends(get_db)):
+    
+    driver = db.query(Driver).get(user_id)
+
+    if driver != null:
+        vehicle = db.query(Vehicle).get(driver.vehicle_number)
+        db.delete(vehicle)
+        db.delete(driver)
+        db.commit()
+        return {"Message": "Driver and vehicle deleted", "Status": True}   
+
+    else:
+         return {"Message": "No driver entry found", "Status": False} 
     
 
