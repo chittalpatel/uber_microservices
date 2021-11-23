@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask
 from flask_restful import Api,Resource,reqparse,abort,fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
@@ -113,8 +115,8 @@ class BookingApi(Resource):
         db.session.commit()
         booking_id = Booking.query.filter_by(passenger_id=args['passenger_id'], created_at=created_at).first()
 
-        params={'latitude':p_lat,'longitude':p_lon}
-        url = '{}/getdriverlist'.format("devam's domain name")
+        params={'latitude':p_lat,'longitude':p_lon, "vehicle_type": args["vehicle_type"]}
+        url = '{}/getdriverlist'.format(os.getenv("DRIVER_STATE_SERVICE"))
         r = requests.get(url,params=params).json()
         r=dict(r)
 
@@ -164,5 +166,3 @@ class AllBookingApi(Resource):
 api.add_resource(BookingApi, "/booking")
 api.add_resource(AllBookingApi,"/allbooking")
 
-if __name__ == '__main__':
-    app.run()

@@ -9,3 +9,4 @@ class DriverState(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     state = models.CharField(max_length=7,choices=Modes,default='offline')
+    vehicle_type = models.CharField(max_length=10)

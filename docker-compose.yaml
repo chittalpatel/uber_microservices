@@ -4,59 +4,35 @@ services:
     gateway:
         build:
             context: ./api_gateway
-        env_file:
-            - gateway-env.list
+        environment:
+            USER_SERVICE: http://user:8000
+            BOOKING_SERVICE: http://booking:8000
+            TRIP_SERVICE: http://trip:8000
+            DRIVER_STATE_SERVICE: http://driver-state:8000
+            PAYMENT_SERVICE: http://payment:8000
         image: chittalpatel/uber-api-gateway:latest
-        networks:
-            - uber
-
-####################### Kafka server ####################################
-    zookeeper:
-        image: 'bitnami/zookeeper:latest'
-        environment:
-            - ALLOW_ANONYMOUS_LOGIN=yes
-        networks:
-            - uber
         ports:
-            - '2181:2181'
-
-    kafka:
-        image: 'bitnami/kafka:latest'
-        environment:
-            - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-            - ALLOW_PLAINTEXT_LISTENER=yes
-            - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
-            - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
-            - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
-            - KAFKA_INTER_BROKER_LISTENER_NAME=CLIENT
+            -   '8000:8000'
         networks:
             - uber
-        ports:
-            - '9093:9093'
-        depends_on:
-            - zookeeper
 
 ######################### User Service ######################################
     user:
         build:
             context: ./user_management_service
         environment:
-            KAFKA_HOST: kafka
-        env_file:
-            -   user-env.list
+            PAYMENT_SERVICE: http://payment:8000
         image: chittalpatel/uber-user-service:latest
         networks:
             - uber
-        ports:
-            - 8000:8000
-        depends_on:
-            - kafka
 
 ################### Booking Service ##################
     booking:
         build:
             context: ./booking_service
         image: chittalpatel/uber-booking-service:latest
+        environment:
+            DRIVER_STATE_SERVICE: http://driver-state:8000
         networks:
             - uber
 
@@ -65,6 +41,8 @@ services:
         build:
             context: ./trip_management_service
         image: chittalpatel/uber-trip-service:latest
+        environment:
+            PAYMENTS_DOMAIN: http://payment:8000
         networks:
             - uber
 
@@ -73,6 +51,8 @@ services:
         build:
             context: ./driver_state_service
         image: chittalpatel/uber-driver-state-service:latest
+        environment:
+            PYTHONUNBUFFERRED: 1
         networks:
             - uber
 
@@ -81,6 +61,9 @@ services:
         build:
             context: ./payments_service
         image: chittalpatel/uber-payment-service:latest
+        environment:
+            USER_SERVICE: http://user:8000
+            BOOKING_SERVICE: http://booking:8000
         networks:
             - uber
 

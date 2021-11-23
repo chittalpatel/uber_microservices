@@ -22,8 +22,11 @@ class ExternalServiceRequests:
             "ride_id": ride_id,
             "driver_id": driver_id,
         }
-        r = requests.post(url=f"{self.PAYMENTS_DOMAIN}/pay", data=payload)
-        r.raise_for_status()
+        r = requests.post(url=f"{self.PAYMENTS_DOMAIN}/pay", json=payload)
+        try:
+            r.raise_for_status()
+        except:
+            raise HTTPException(r.status_code)
         print(r.json())
 
 

@@ -1,35 +1,22 @@
-import json
-from typing import List, Tuple
+from typing import List
 
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, Body
-from sqlalchemy.orm import Session
+from fastapi import Depends, FastAPI
 
-from service import PaymentService
 import models
-from schemas import PayRideRequest, Payment
-from database import engine
 from constants import Routes
-from kafka_producer import Producer
-
+from database import engine
+from schemas import PayRideRequest, Payment
+from service import PaymentService
 
 models.Base.metadata.create_all(bind=engine)
 
-producer = Producer()
 app = FastAPI()
 
 
 @app.post(Routes.PAY, response_model=List[Payment])
 def start_payment(request: PayRideRequest, svc: PaymentService = Depends()):
-    payments = svc.pay_ride(request=request)
-    for payment in payments:
-        payload = {
-            "user_id": payment.user_id,
-            "amount": payment.amount,
-        }
-        #producer.produce(key=payment.id, value=json.dumps(payload))
-
-    return payments
+    return svc.pay_ride(request=request)
 
 
 @app.post(Routes.PAYMENT, response_model=Payment)

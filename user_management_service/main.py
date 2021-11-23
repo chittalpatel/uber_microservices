@@ -1,6 +1,8 @@
+import os
 from typing import Optional
 import decimal
 
+import requests
 import uvicorn as uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -22,22 +24,25 @@ def get_db():
         db.close()
 
 class RegStruct(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    password: Optional[str] = None
-    mobile: Optional[str] = None
-    user_type: Optional[str] = None
-    balance: Optional[float] = None
+    name: Optional[str]
+    email: Optional[str]
+    password: Optional[str]
+    mobile: Optional[str]
+    user_type: Optional[str]
 
 class LoginStruct(BaseModel):
     mobile: str
     password: str
 
 class DriverStruct(BaseModel):
-    user_id: int
     acc_no: str
     vehicle_number: str
     vehicle_type: str
+
+
+class ProcessPaymentRequest(BaseModel):
+    payment_id: int
+    amount: int
 
 
 app = FastAPI()
@@ -63,7 +68,7 @@ def create_user(userInfo: RegStruct, db: Session = Depends(get_db)):
         user.password = userInfo.password
         user.user_type = userInfo.user_type
         user.mobile = userInfo.mobile
-        user.balance = userInfo.balance
+        user.balance = 0
         
         db.add(user)
         db.commit()
@@ -76,9 +81,11 @@ def create_user(userInfo: RegStruct, db: Session = Depends(get_db)):
 
 @app.post("/login")
 def login(userInfo: LoginStruct, db: Session = Depends(get_db)):
-    if db.query(User).filter_by(mobile=userInfo.mobile).first() is not None and db.query(User).filter_by(mobile=userInfo.mobile).first().password == userInfo.password:
-        user_id = db.query(User).filter_by(mobile=userInfo.mobile).first().id
-        return {"Status": True, "user_id": user_id, "mobile": userInfo.mobile}
+    print(userInfo.dict())
+    user: User = db.query(User).filter_by(mobile=userInfo.mobile).first()
+    print(user.mobile, user.password)
+    if user is not None and user.password == userInfo.password:
+        return {"Status": True, "user_id": user.id, "mobile": userInfo.mobile, "user_type": user.user_type}
     else:
         return HTTPException(status_code=401, detail="invalid credentials")
 
@@ -111,7 +118,6 @@ def getProfile(user_id, db: Session = Depends(get_db)):
         user_dict['id'] = user.id
         user_dict['name'] = user.name
         user_dict['email'] = user.email
-        user_dict['password'] = user.password
         user_dict['user_type'] = user.user_type
         user_dict['balance'] = user.balance
         return {"content" : user_dict, "Status": True}
@@ -130,7 +136,7 @@ def add_driver(driverInfo: DriverStruct, user_id: int, db: Session = Depends(get
                         vehicle = Vehicle()
                         vehicle.vehicle_number = driverInfo.vehicle_number
                         vehicle.vehicle_type = driverInfo.vehicle_type
-                        driver.user_id = driverInfo.user_id
+                        driver.user_id = user_id
                         driver.acc_no = driverInfo.acc_no
                         driver.vehicle_number = driverInfo.vehicle_number
                         db.add(driver)
@@ -205,6 +211,23 @@ def delete_driver(user_id: int, db: Session = Depends(get_db)):
 
     else:
          return {"Message": "No driver entry found", "Status": False} 
+
+
+@app.post("/user/{user_id}/process-payment")
+def process_payment(user_id: int, _request: ProcessPaymentRequest, db: Session = Depends(get_db)):
+    user: User = db.query(User).get(user_id)
+    if user is None:
+        raise HTTPException(404, "User doesn't not exist")
+    user.balance += _request.amount
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    r = requests.post(f"{os.getenv('PAYMENT_SERVICE')}/payment/{_request.payment_id}")
+    try:
+        r.raise_for_status()
+    except:
+        raise HTTPException(status_code=r.status_code)
+    return user
 
 
 if __name__ == "__main__":

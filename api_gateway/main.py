@@ -6,8 +6,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
 
 from client import InternalClient
+from schemas.booking_service import CreateBookingRequest, DriverStateRequest
 from schemas.trip_service import AcceptBookingRequest, Ride, GetOtpResponse
-from schemas.user_service import LoginStruct, RegStruct, DriverStruct
+from schemas.user_service import LoginStruct, RegStruct, DriverStruct, AuthTokenResponse
 from security import create_access_token, authenticated_user
 from constants import Routes
 
@@ -19,11 +20,12 @@ client = InternalClient()
 # User Management Service
 #######################################################################
 
-@router.post(Routes.LOGIN)
+@router.post(Routes.LOGIN, response_model=AuthTokenResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     request = LoginStruct(mobile=form_data.username, password=form_data.password)
     user = client.login(request)
-    return create_access_token(user_id=user["user_id"], username=user["mobile"], user_type=user["user_type"])
+    token = create_access_token(user_id=user["user_id"], username=user["mobile"], user_type=user["user_type"])
+    return AuthTokenResponse(access_token=token, token_type="bearer")
 
 
 @router.get(Routes.USER)
@@ -49,6 +51,31 @@ def add_driver_profile(request: DriverStruct, user: dict = Depends(authenticated
 #######################################################################
 # Booking Service
 #######################################################################
+
+
+@router.get(Routes.BOOK)
+def get_latest_booking(user: dict = Depends(authenticated_user)):
+    return client.get_latest_user_booking(user_id=user["id"])
+
+
+@router.get(Routes.BOOK + "/{booking}")
+def get_booking(booking: int, user: dict = Depends(authenticated_user)):
+    return client.get_booking_by_id(booking_id=booking, user_id=user["id"])
+
+
+@router.post(Routes.SEARCH_RIDE)
+def search_drivers(request: CreateBookingRequest, user: dict = Depends(authenticated_user)):
+    return client.create_booking(_request=request, user_id=user["id"])
+
+
+#######################################################################
+# Driver State Service
+#######################################################################
+
+
+@router.post(Routes.SET_DRIVER_STATE)
+def set_driver_state(request: DriverStateRequest, user: dict = Depends(authenticated_user)):
+    return client.set_driver_state(_request=request, user_id=user["id"])
 
 
 #######################################################################

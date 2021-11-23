@@ -12,5 +12,10 @@ class Routes:
     RIDE_START = BASE_API_STR + "/ride/{ride}/start"
     RIDE_COMPLETE = BASE_API_STR + "/ride/{ride}/complete"
 
-    # Payment
+    # Booking
+    BOOK = BASE_API_STR + "/book"
+    SEARCH_RIDE = BASE_API_STR + "/book/search"
+
+    # Driver State
+    SET_DRIVER_STATE = "/driver/change-state"
 
